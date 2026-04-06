@@ -19,7 +19,7 @@ windows:
         - ros2 run as2_alphanumeric_viewer as2_alphanumeric_viewer_node
             --ros-args -r  __ns:=/<%= drone %>
     <%- end %>
-        - echo Run here the mission
+
 
   # Ground station
   - ground_station:
@@ -38,3 +38,8 @@ windows:
       <%- if rosbag %>
         - ./rosbag/record_rosbag.bash <%= drone_namespace %>
       <%- end %>
+  - tracker:
+      layout:
+      panes:
+          - python3 track_progress.py --mission begin5_mission_solar.py -s
+          - echo "Run the mission here"

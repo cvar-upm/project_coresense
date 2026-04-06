@@ -1,0 +1,60 @@
+/**:
+  platform:
+    ros__parameters:
+      gps_origin:
+        latitude: 40.4405287
+        longitude: -3.6898277
+        altitude: 100.0
+
+# Hard experiment: 5 drones in a tight, irregular cluster near the origin
+# (max inter-drone distance ≈ 4.5 m).  Waypoints sit in fan sectors at
+# radius ~6.5 m so every drone's own tasks are strictly cheaper than any
+# cross-sector task (guarantees FCFS assigns full bundle to each drone).
+#
+#   drone0 ( 0, 2)  → upper fan        (x ∈ [-2, 2],   y ∈ [6.0, 6.5])
+#   drone1 (-2, 0)  → left fan         (x ∈ [-6.5,-6], y ∈ [-2, 2])
+#   drone2 (-1,-2)  → lower-left fan   (x ∈ [-5,-1],   y ∈ [-6.5,-4.5])
+#   drone3 ( 1,-2)  → lower-right fan  (x ∈ [1, 5],    y ∈ [-6.5,-4.5])
+#   drone4 ( 2, 0)  → right fan        (x ∈ [6, 6.5],  y ∈ [-2, 2])
+#
+# Companion mission file: begin5_mission_hard.py
+# Set bundle_size = 5 in config/config.yaml.
+drone0:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 0.0
+        y: 2.0
+        z: 0.0
+
+drone1:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -2.0
+        y: 0.0
+        z: 0.0
+
+drone2:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -1.0
+        y: -2.0
+        z: 0.0
+
+drone3:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 1.0
+        y: -2.0
+        z: 0.0
+
+drone4:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 2.0
+        y: 0.0
+        z: 0.0

@@ -1,0 +1,27 @@
+{
+  "kb_namespace": "kb",
+  "handlers": [
+    {
+      "id": "stop_on_auction_start",
+      "patterns": ["?drone auctionStatus started"],
+      "one_shot": false,
+      "models": [],
+      "func": {
+        "path": "/root/project_coresense/config/kb_handlers.py",
+        "name": "kb_handlers",
+        "func_name": "on_auction_started"
+      }
+    },
+    {
+      "id": "follow_path_on_auction_result",
+      "patterns": ["?drone auctionStatus completed"],
+      "one_shot": false,
+      "models": [],
+      "func": {
+        "path": "/root/project_coresense/config/kb_handlers.py",
+        "name": "kb_handlers",
+        "func_name": "on_auction_completed"
+      }
+    }
+  ]
+}

@@ -1,0 +1,54 @@
+/**:
+  platform:
+    ros__parameters:
+      gps_origin:
+        latitude: 40.4405287
+        longitude: -3.6898277
+        altitude: 100.0
+
+# 5 drones in a row along y=0, spaced 4 m apart (16 m total spread).
+# Each drone is centred on its assigned column of waypoints.
+#   drone0 (-8, 0) → column A  x ∈ [-9, -7]
+#   drone1 (-4, 0) → column B  x ∈ [-5, -3]
+#   drone2 ( 0, 0) → column C  x ∈ [-1,  1]
+#   drone3 ( 4, 0) → column D  x ∈ [ 3,  5]
+#   drone4 ( 8, 0) → column E  x ∈ [ 7,  9]
+drone0:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -8.0
+        y: 0.0
+        z: 0.0
+
+drone1:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -4.0
+        y: 0.0
+        z: 0.0
+
+drone2:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 0.0
+        y: 0.0
+        z: 0.0
+
+drone3:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 4.0
+        y: 0.0
+        z: 0.0
+
+drone4:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 8.0
+        y: 0.0
+        z: 0.0

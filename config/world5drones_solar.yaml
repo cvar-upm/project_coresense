@@ -1,0 +1,63 @@
+/**:
+  platform:
+    ros__parameters:
+      gps_origin:
+        latitude: 40.4405287
+        longitude: -3.6898277
+        altitude: 100.0
+
+# Solar-plant inspection experiment.
+#
+# 5 drones launch from the left edge of the arena, one per row:
+#
+#   5 rows (A–E) × 7 columns = 35 waypoints
+#   Row spacing : 3 m   (y = 6, 3, 0, -3, -6)
+#   Column spacing: 3 m (x = -9, -6, -3, 0, 3, 6, 9)
+#
+# Each drone starts at x = -10 (just left of col 1), aligned with its row.
+# With bundle_size = 7, each drone's 7 nearest items are exactly its own row,
+# so the greedy sequential auction assigns one full row per drone with no
+# cross-row competition.
+#
+# Companion mission file: begin5_mission_solar.py
+# Set bundle_size = 7 in config/config.yaml.
+
+drone0:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: 6.0
+        z: 0.0
+
+drone1:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: 3.0
+        z: 0.0
+
+drone2:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: 0.0
+        z: 0.0
+
+drone3:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: -3.0
+        z: 0.0
+
+drone4:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: -6.0
+        z: 0.0

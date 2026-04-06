@@ -1,0 +1,55 @@
+/**:
+  platform:
+    ros__parameters:
+      gps_origin:
+        latitude: 40.4405287
+        longitude: -3.6898277
+        altitude: 100.0
+
+# 5 drones clustered near the centre of the 20 m x 20 m arena (x,y ∈ [-10, 10]).
+# Max inter-drone distance ≈ 6 m, which is realistic for a ground-pad deployment.
+# Each drone faces the sector of the arena it will be assigned during the auction:
+#   drone0 (-2, 2)  → upper-left
+#   drone1 ( 2, 2)  → upper-right
+#   drone2 ( 3,-1)  → right
+#   drone3 ( 0,-2)  → lower-centre
+#   drone4 (-3,-1)  → left
+drone0:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -2.0
+        y: 2.0
+        z: 0.0
+
+drone1:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 2.0
+        y: 2.0
+        z: 0.0
+
+drone2:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 3.0
+        y: -1.0
+        z: 0.0
+
+drone3:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: 0.0
+        y: -2.0
+        z: 0.0
+
+drone4:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -3.0
+        y: -1.0
+        z: 0.0

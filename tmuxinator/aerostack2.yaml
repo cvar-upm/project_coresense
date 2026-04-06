@@ -36,6 +36,7 @@ windows:
             plugin_name:=<%= motion_controller_plugin %>
             plugin_config_file:=config/<%= motion_controller_plugin %>.yaml
 
+
   # Behaviors
   - behaviors:
       layout:
@@ -48,23 +49,35 @@ windows:
         - ros2 launch as2_behaviors_trajectory_generation generate_polynomial_trajectory_behavior_launch.py
             namespace:=<%= drone_namespace %>
             config_file:=config/config.yaml
-        # Point Gimbal Behavior
-        - ros2 launch as2_behaviors_perception point_gimbal_behavior.launch.py
+        # Auction Behavior
+        - ros2 launch as2_auction_behavior auction_behavior_launch.py
             namespace:=<%= drone_namespace %>
-            config_file:=config/config.yaml
+            behavior_config_file:=config/config.yaml
 
   # Mission execution
   - mission_execution:
       layout:
       panes:
-        # Behavior tree
-        - ros2 launch as2_behavior_tree behavior_trees.launch.py
-            drone_id:=<%= drone_namespace %>
-            tree:=./trees/square.xml
+        - ros2 run as2_python_api mission_executor
+                --n <%= drone_namespace %>
+                --add_namespace
+                --timer_freq 2.0 
+        - ros2 run as2_python_api kb_monitor --drone_namespace <%= drone_namespace %> config/kb_monitor_config.json
+
+  # Knowledge Base
+  - knowledge_base:
+      layout:
+      panes:
+        - ros2 launch knowledge_core knowledge_core.launch.py
+            namespace:=<%= drone_namespace %>
+
+        # CollectiveAwareness
+        - ros2 launch as2_ca ca_gateway_launch.py 
+            namespace:=<%= drone_namespace %>
 
   # Mission monitoring
   - mission_monitoring:
-      layout: tiled
+      layout: 
       panes:
         - ros2 run as2_alphanumeric_viewer as2_alphanumeric_viewer_node
             --ros-args -r  __ns:=/<%= drone_namespace %>

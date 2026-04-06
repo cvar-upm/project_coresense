@@ -27,6 +27,16 @@ for namespace in ${drone_namespaces[@]}; do
   tmux_session_list+=("$namespace")
 done
 
+# Add drones from any world5drones*.yaml files
+for world_file in ${script_dir}/config/world5drones*.yaml; do
+  if [[ -f "$world_file" ]]; then
+    drone_namespaces=$(python3 ${script_dir}/utils/get_drones.py -p "$world_file" --sep ' ')
+    for namespace in ${drone_namespaces[@]}; do
+      tmux_session_list+=("$namespace")
+    done
+  fi
+done
+
 tmux_session_list+=("ground_station")
 
 ${script_dir}/utils/stop_tmux_sessions.bash "${tmux_session_list[@]}"

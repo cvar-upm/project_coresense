@@ -3,25 +3,25 @@
 usage() {
     echo "  options:"
     echo "      -c: motion controller plugin (pid_speed_controller, differential_flatness_controller), choices: [pid, df]. Default: pid"
-    echo "      -m: multi agent. Default not set"
+    echo "      -w: world config file. Default: config/world.yaml"
     echo "      -n: select drones namespace to launch, values are comma separated. By default, it will get all drones from world description file"
     echo "      -g: launch using gnome-terminal instead of tmux. Default not set"
 }
 
 # Initialize variables with default values
 motion_controller_plugin="pid"
-swarm="false"
+simulation_config="config/world.yaml"
 drones_namespace_comma=""
 use_gnome="false"
 
 # Arg parser
-while getopts "cmn:g" opt; do
+while getopts "cw:n:g" opt; do
   case ${opt} in
     c )
       motion_controller_plugin="${OPTARG}"
       ;;
-    m )
-      swarm="true"
+    w )
+      simulation_config="${OPTARG}"
       ;;
     n )
       drones_namespace_comma="${OPTARG}"
@@ -43,13 +43,6 @@ while getopts "cmn:g" opt; do
       ;;
   esac
 done
-
-# Set simulation world description config file
-if [[ ${swarm} == "true" ]]; then
-  simulation_config="config/world_swarm.yaml"
-else
-  simulation_config="config/world.yaml"
-fi
 
 # If no drone namespaces are provided, get them from the world description config file
 if [ -z "$drones_namespace_comma" ]; then
