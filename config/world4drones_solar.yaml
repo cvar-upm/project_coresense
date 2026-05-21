@@ -1,0 +1,61 @@
+/**:
+  platform:
+    ros__parameters:
+      gps_origin:
+        latitude: 40.4405287
+        longitude: -3.6898277
+        altitude: 100.0
+
+# Solar-plant inspection experiment — 4-drone variant.
+#
+# 4 drones launch from the left edge of the arena, positioned at the
+# midpoints between panel rows so no drone is pre-aligned with any row:
+#
+#   5 rows (A–E) × 7 columns = 35 waypoints
+#   Row spacing : 3 m   (y = 6, 3, 0, -3, -6)
+#   Column spacing: 3 m (x = -9, -6, -3, 0, 3, 6, 9)
+#
+# Drone start Y positions (gaps between rows):
+#   drone0: y =  4.5  (between rows A and B)
+#   drone1: y =  1.5  (between rows B and C)
+#   drone2: y = -1.5  (between rows C and D)
+#   drone3: y = -4.5  (between rows D and E)
+#
+# Starting in the gaps makes each drone equidistant from its two nearest
+# rows, preventing the greedy auction from systematically biasing toward
+# any single row at the first assignment round.
+#
+# Companion mission file: begin4_mission_solar.json
+# Set bundle_size = 7 in config/config.yaml.
+
+drone0:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: 4.5
+        z: 0.0
+
+drone1:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: 1.5
+        z: 0.0
+
+drone2:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: -1.5
+        z: 0.0
+
+drone3:
+  platform:
+    ros__parameters:
+      vehicle_initial_pose:
+        x: -10.0
+        y: -4.5
+        z: 0.0

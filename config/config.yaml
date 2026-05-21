@@ -62,6 +62,7 @@
     ros__parameters:
       behavior_timeout: 10.0 # Timeout (s) for the action server
       plugin_name: "greedy_sequential"
+      # plugin_name: "cbba"
+      bundle_size: 9
       state_component:
         - self_localization/pose
-      bundle_size: 9

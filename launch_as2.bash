@@ -5,6 +5,7 @@ usage() {
     echo "      -c: motion controller plugin (pid_speed_controller, differential_flatness_controller), choices: [pid, df]. Default: pid"
     echo "      -w: world config file. Default: config/world.yaml"
     echo "      -n: select drones namespace to launch, values are comma separated. By default, it will get all drones from world description file"
+    echo "      -r: use real hardware tmuxinator config (aerostack2_real.yaml). Default: simulation (aerostack2.yaml)"
     echo "      -g: launch using gnome-terminal instead of tmux. Default not set"
 }
 
@@ -13,9 +14,10 @@ motion_controller_plugin="pid"
 simulation_config="config/world.yaml"
 drones_namespace_comma=""
 use_gnome="false"
+tmuxinator_config="tmuxinator/aerostack2.yaml"
 
 # Arg parser
-while getopts "cw:n:g" opt; do
+while getopts "cw:n:rg" opt; do
   case ${opt} in
     c )
       motion_controller_plugin="${OPTARG}"
@@ -25,6 +27,9 @@ while getopts "cw:n:g" opt; do
       ;;
     n )
       drones_namespace_comma="${OPTARG}"
+      ;;
+    r )
+      tmuxinator_config="tmuxinator/aerostack2_real.yaml"
       ;;
     g )
       use_gnome="true"
@@ -80,7 +85,7 @@ for namespace in ${drone_namespaces[@]}; do
   if [[ ${namespace} == ${drone_namespaces[0]} ]]; then
     base_launch="true"
   fi
-  eval "tmuxinator ${tmuxinator_mode} -n ${namespace} -p tmuxinator/aerostack2.yaml \
+  eval "tmuxinator ${tmuxinator_mode} -n ${namespace} -p ${tmuxinator_config} \
     drone_namespace=${namespace} \
     simulation_config_file=${simulation_config} \
     motion_controller_plugin=${motion_controller_plugin} \

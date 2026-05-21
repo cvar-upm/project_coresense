@@ -2,27 +2,29 @@
 
 usage() {
     echo "  options:"
-    echo "      -m: multi agent. Default not set"
+    echo "      -w: world config file. Default: config/world.yaml"
     echo "      -t: launch keyboard teleoperation. Default not launch"
     echo "      -v: open rviz. Default launch"
     echo "      -r: record rosbag. Default not launch"
     echo "      -n: drone namespaces, comma separated. Default get from world description config file"
+    echo "      -R: use real hardware tmuxinator config (ground_station_real.yaml). Default: simulation (ground_station.yaml)"
     echo "      -g: launch using gnome-terminal instead of tmux. Default not set"
 }
 
 # Initialize variables with default values
-swarm="false"
+simulation_config="config/world.yaml"
 keyboard_teleop="false"
 rviz="true"
 rosbag="false"
 drones_namespace_comma=""
 use_gnome="false"
+tmuxinator_config="tmuxinator/ground_station.yaml"
 
 # Parse command line arguments
-while getopts "mtvrn:g" opt; do
+while getopts "w:tvrn:Rg" opt; do
   case ${opt} in
-    m )
-      swarm="true"
+    w )
+      simulation_config="${OPTARG}"
       ;;
     t )
       keyboard_teleop="true"
@@ -35,6 +37,9 @@ while getopts "mtvrn:g" opt; do
       ;;
     n )
       drones_namespace_comma="${OPTARG}"
+      ;;
+    R )
+      tmuxinator_config="tmuxinator/ground_station_real.yaml"
       ;;
     g )
       use_gnome="true"
@@ -54,13 +59,6 @@ while getopts "mtvrn:g" opt; do
   esac
 done
 
-# Set simulation world description config file
-if [[ ${swarm} == "true" ]]; then
-  simulation_config="config/world5drones_hard.yaml"
-else
-  simulation_config="config/world.yaml"
-fi
-
 # If no drone namespaces are provided, get them from the world description config file
 if [ -z "$drones_namespace_comma" ]; then
   drones_namespace_comma=$(python3 utils/get_drones.py -p ${simulation_config} --sep ',')
@@ -76,7 +74,7 @@ if [[ ${use_gnome} == "true" ]]; then
 fi
 
 # Launch aerostack2 ground station
-eval "tmuxinator ${tmuxinator_mode} -n ground_station -p tmuxinator/ground_station.yaml \
+eval "tmuxinator ${tmuxinator_mode} -n ground_station -p ${tmuxinator_config} \
   drone_namespace=${drones_namespace_comma} \
   keyboard_teleop=${keyboard_teleop} \
   rviz=${rviz} \

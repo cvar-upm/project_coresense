@@ -4,6 +4,7 @@ drone_namespace = @settings["drone_namespace"]
 keyboard_teleop = @settings["keyboard_teleop"] == "true"
 rviz            = @settings["rviz"] == "true"
 rosbag          = @settings["rosbag"] == "true"
+mocap4ros2      = @settings["mocap4ros2"] == "true"
 %>
 
 name: ground_station
@@ -42,4 +43,10 @@ windows:
       layout:
       panes:
           - ros2 run knowledge_core kb_tui
-          - echo "Run the mission here"
+  - mocap:
+      <%- if mocap4ros2 %>
+        - ros2 launch mocap4r2_optitrack_driver optitrack2.launch.py
+            namespace:=mocap
+            config_file:=config_ground_station/mocap4r2_optitrack.yaml
+        - sleep 1; ros2 lifecycle set /mocap/mocap4r2_optitrack_driver_node activate
+      <%- end %>
