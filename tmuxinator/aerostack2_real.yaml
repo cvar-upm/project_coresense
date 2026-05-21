@@ -17,7 +17,7 @@ windows:
       # Platform
       <%- if base_launch %>
       - ros2 launch as2_platform_crazyflie crazyflie_swarm_launch.py
-          swarm_config_file:=config/config.yaml
+          swarm_config_file:=config/config_real.yaml
       <%- else %>
       - echo "Platform already launched in the first tmux session"
       <%- end %>
@@ -29,11 +29,11 @@ windows:
         # State Estimation
         - ros2 launch as2_state_estimator state_estimator_launch.py
             namespace:=<%= drone_namespace %>
-            config_file:=config/config.yaml
+            config_file:=config/config_real.yaml
         # Motion Controller
         - ros2 launch as2_motion_controller controller_launch.py
             namespace:=<%= drone_namespace %>
-            config_file:=config/config.yaml
+            config_file:=config/config_real.yaml
             plugin_name:=<%= motion_controller_plugin %>
             plugin_config_file:=config/<%= motion_controller_plugin %>.yaml
 
@@ -45,15 +45,15 @@ windows:
         # Motion Behaviors
         - ros2 launch as2_behaviors_motion motion_behaviors_launch.py
             namespace:=<%= drone_namespace %>
-            config_file:=config/config.yaml
+            config_file:=config/config_real.yaml
         # Trajectory Generation Behavior
         - ros2 launch as2_behaviors_trajectory_generation generate_polynomial_trajectory_behavior_launch.py
             namespace:=<%= drone_namespace %>
-            config_file:=config/config.yaml
+            config_file:=config/config_real.yaml
         # Auction Behavior
         - ros2 launch as2_auction_behavior auction_behavior_launch.py
             namespace:=<%= drone_namespace %>
-            behavior_config_file:=config/config.yaml
+            behavior_config_file:=config/config_real.yaml
         # Collision Avoidance Behavior
         - ros2 launch as2_behaviors_collision_avoidance collision_avoidance_behavior_launch.py
             namespace:=<%= drone_namespace %>
