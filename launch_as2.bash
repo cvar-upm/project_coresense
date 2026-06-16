@@ -95,8 +95,8 @@ for namespace in ${drone_namespaces[@]}; do
   sleep 0.1 # Wait for tmuxinator to finish
 done
 
-# Attach to tmux session
-if [[ ${use_gnome} == "false" ]]; then
+# Attach to tmux session (only when stdin is a real TTY — skip when called from a script)
+if [[ ${use_gnome} == "false" ]] && [[ -t 0 ]]; then
   tmux attach-session -t ${drone_namespaces[0]}
 # If tmp_file exists, remove it
 elif [[ -f ${tmp_file} ]]; then
