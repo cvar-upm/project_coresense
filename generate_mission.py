@@ -3,8 +3,8 @@
 generate_mission.py -- generate a world YAML + mission YAML pair from a spec file.
 
 Writes (single run):
-    config/<name>.yaml          drone initial positions
-    missions/<name>.yaml        mission spec consumed by send_mission.py / mission_executor.py
+    config/exp_config/<name>/<name>.yaml   drone initial positions
+    missions/<name>.yaml                   mission spec consumed by send_mission.py / mission_executor.py
     <name>_experiments.yaml     ready-to-use input for run_experiments.py
 
 Sweep mode (spec contains a `sweep:` block):
@@ -96,20 +96,27 @@ GPS_ORIGIN = {'latitude': 40.4405287, 'longitude': -3.6898277, 'altitude': 100.0
 # ---------------------------------------------------------------------------
 
 def waypoints_for_areas(areas: List[dict], height: float,
-                        street_spacing: float, wp_space: float) -> List[List[float]]:
-    """Run the back-and-force coverage planner on every area and return all waypoints."""
+                        street_spacing: float, wp_space: float,
+                        orientation: Optional[float] = None) -> List[List[float]]:
+    """Run the back-and-force coverage planner on every area and return all waypoints.
+
+    orientation: street angle in degrees passed as theta to BackAndForce.
+                 None = auto-detect (planner chooses the longest axis).
+    """
     all_waypoints: List[List[float]] = []
     for area in areas:
         verts = [[v['x'], v['y'], height] for v in area['vertices']]
         centroid_x = sum(v[0] for v in verts) / len(verts)
         centroid_y = sum(v[1] for v in verts) / len(verts)
         start = [[centroid_x, centroid_y, height]]
+        theta = area.get('orientation', orientation)
         wps = BackAndForce.generate_path(
             initial_position_list=start,
             last_position_list=start,
             area_values=verts,
             street_spacing=street_spacing,
             waypoints_spacing=wp_space,
+            theta=theta,
         )
         all_waypoints.extend(wps)
     return all_waypoints
@@ -249,7 +256,8 @@ def build_mission_yaml(name: str,
                        coverage_height: float,
                        coverage_speed: float,
                        street_spacing: float,
-                       wp_space: float) -> dict:
+                       wp_space: float,
+                       orientation: Optional[float] = None) -> dict:
     """Mission YAML consumed by send_mission.py / mission_executor.py.
 
     One Area layer per inspection polygon, one LandPoint layer per drone.
@@ -264,7 +272,7 @@ def build_mission_yaml(name: str,
             'algorithm': 'back_and_force',
             'streetSpacing': street_spacing,
             'wpSpace': wp_space,
-            'orientation': 0.0,
+            'orientation': area.get('orientation', orientation if orientation is not None else 0.0),
             'values': [[v['x'], v['y']] for v in area['vertices']],
         })
     for drone in drone_names:
@@ -280,7 +288,7 @@ def build_mission_yaml(name: str,
         'id': name,
         'use_cartesian_coordinates': True,
         'takeoff_height': takeoff_height,
-        'max_wp_distance': 10.0,
+        'max_wp_distance': None,
         'uavList': drone_names,
         'layers': layers,
     }
@@ -358,20 +366,24 @@ def _generate_from_spec(spec: dict, dry_run: bool = False) -> Optional[dict]:
     wp_space       = float(world_cfg.get('wp_space',       1.0))
     cov_height     = float(world_cfg.get('height',         5.0))
     cov_speed      = float(world_cfg.get('speed',          2.0))
+    orientation_raw = world_cfg.get('orientation')
+    orientation    = float(orientation_raw) if orientation_raw is not None else None
 
     # -- paths -----------------------------------------------------------------
     slug         = _slug(name)
     out_cfg      = spec.get('output', {})
     world_dir    = SCRIPT_DIR / out_cfg.get('world_dir',   'config')
     missions_root = SCRIPT_DIR / out_cfg.get('mission_dir', 'missions')
-    mission_subdir = missions_root / _slug(spec.get('_subdir', name))
-    world_path    = world_dir    / f'{slug}.yaml'
+    spec_subdir    = _slug(spec.get('_subdir', name))
+    world_subdir   = world_dir / 'exp_config' / spec_subdir
+    mission_subdir = missions_root / spec_subdir
+    world_path    = world_subdir  / f'{slug}.yaml'
     mission_path  = mission_subdir / f'{slug}.yaml'
 
     world_text   = build_world_yaml(drone_names, positions, GPS_ORIGIN)
     mission_dict = build_mission_yaml(name, drone_names, areas,
                                       takeoff_height, cov_height, cov_speed,
-                                      street_spacing, wp_space)
+                                      street_spacing, wp_space, orientation)
 
     # -- world SDF with solar panels at coverage waypoints ----------------------
     sdf_text = None
@@ -380,7 +392,7 @@ def _generate_from_spec(spec: dict, dry_run: bool = False) -> Optional[dict]:
         sdf_dir  = SCRIPT_DIR / world_cfg['output_dir']
         sdf_path = sdf_dir / f'{slug}.sdf'
 
-        waypoints = waypoints_for_areas(areas, cov_height, street_spacing, wp_space)
+        waypoints = waypoints_for_areas(areas, cov_height, street_spacing, wp_space, orientation)
         sdf_text  = render_world_sdf(name, waypoints, GPS_ORIGIN)
 
     if dry_run:
@@ -391,6 +403,7 @@ def _generate_from_spec(spec: dict, dry_run: bool = False) -> Optional[dict]:
             print(f'=== {sdf_path} ===\n{sdf_text[:500]}...')
         return None
 
+    world_subdir.mkdir(parents=True, exist_ok=True)
     world_path.write_text(world_text)
     mission_subdir.mkdir(parents=True, exist_ok=True)
     mission_path.write_text(yaml.dump(mission_dict, default_flow_style=False, sort_keys=False))

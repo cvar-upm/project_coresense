@@ -131,6 +131,7 @@ class MissionExecutorNode:
         self._failure_event = threading.Event()
         self._done_event    = threading.Event()
         self._total_wps     = sum(len(wps) for wps in self._wp_pos.values())
+        self._visited_wps   = 0
         self._wp_tracker = wp_tracker
 
         self._pubs = {
@@ -164,6 +165,13 @@ class MissionExecutorNode:
                     if dist < WAYPOINT_REACH_DIST:
                         visited_idx = self._next_wp[name]
                         self._next_wp[name] += 1
+                        self._visited_wps += 1
+                        drone_total = len(self._wp_pos[name])
+                        print(
+                            f'[{name}] waypoint {visited_idx + 1}/{drone_total} visited'
+                            f'  —  fleet {self._visited_wps}/{self._total_wps}',
+                            flush=True,
+                        )
                         if self._wp_tracker:
                             self._wp_tracker.mark_visited(name, visited_idx)
                     else:

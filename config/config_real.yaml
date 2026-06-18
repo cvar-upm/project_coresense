@@ -1,7 +1,7 @@
 /**:
   # Global Parameters
   ros__parameters:
-    tf_timeout_threshold: 0.05
+    tf_timeout_threshold: 0.0
 
 /**:
   # Basic Robotics Functions
@@ -9,6 +9,7 @@
     ros__parameters:
       external_odom: true
       external_odom_topic: "self_localization/pose"
+      # external_odom: false
 
   # State Estimator
   state_estimator:
@@ -20,15 +21,16 @@
       # # Outdoor (GPS)
       # use_gps: true
       # set_origin_on_start: true
+      # --- Indoor MOCAP ---
       plugin_name: "mocap_pose"
       mocap_topic: "/mocap/rigid_bodies"
       twist_smooth_filter_cte: 0.1
       orientation_smooth_filter_cte: 0.1
 
   # Motion Controller
-  controller_manager:
-    ros__parameters:
-      cmd_freq: 100.0 # Hz of controller commands send
+  # controller_manager:
+  #   ros__parameters:
+  #     cmd_freq: 100.0 # Hz of controller commands send
 
   # Behaviors Motion
   TakeoffBehavior:
@@ -66,42 +68,43 @@
       behavior_timeout: 10.0 # Timeout (s) for the action server
       plugin_name: "greedy_sequential"
       # plugin_name: "cbba"
-      bundle_size: 9
+      bundle_size: 4
       state_component:
         - self_localization/pose
 
 drone0:
   platform:
     ros__parameters:
-      uri: radio://0/80/2M/E7E7E7E777
+      cf_name: "cf1"
+      mocap_id: "1"
   # Motion Capture
   state_estimator:
     ros__parameters:
       rigid_body_name: "1"
 
-drone1:
-  platform:
-    ros__parameters:
-      uri: radio://0/80/2M/E7E7E7EEEE 
-  # Motion Capture
-  state_estimator:
-    ros__parameters:
-      rigid_body_name: "2"
+# drone1:
+#   platform:
+#     ros__parameters:
+#       uri: radio://0/80/2M/E7E7E7EEEE 
+#   # Motion Capture
+#   state_estimator:
+#     ros__parameters:
+#       rigid_body_name: "2"
 
-drone2:
-  platform:
-    ros__parameters:
-      uri: radio://0/80/2M/E7E7E70000
-  # Motion Capture
-  state_estimator:
-    ros__parameters:
-      rigid_body_name: "3"
+# drone2:
+#   platform:
+#     ros__parameters:
+#       uri: radio://0/1/1M/E7E7E7AAAB
+#   # Motion Capture
+#   state_estimator:
+#     ros__parameters:
+#       rigid_body_name: "3"
 
-drone3:
-  platform:
-    ros__parameters:
-      uri: radio://0/1/1M/E7E7E7AAAB
-  # Motion Capture
-  state_estimator:
-    ros__parameters:
-      rigid_body_name: "4"
+# drone2:
+#   platform:
+#     ros__parameters:
+#       uri: radio://0/80/2M/E7E7E70000
+#   # Motion Capture
+#   state_estimator:
+#     ros__parameters:
+#       rigid_body_name: "3"

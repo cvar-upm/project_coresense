@@ -15,6 +15,7 @@ import re
 import subprocess
 import sys
 from copy import deepcopy
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
@@ -29,6 +30,7 @@ from textual.widgets import (
     Checkbox,
     Collapsible,
     DataTable,
+    DirectoryTree,
     Footer,
     Header,
     Input,
@@ -44,6 +46,109 @@ from textual.widgets import (
 )
 
 SCRIPT_DIR = Path(__file__).parent
+
+_DRONE_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6']
+_AREA_COLORS  = ['#3498db', '#2ecc71', '#e67e22', '#9b59b6', '#e74c3c',
+                 '#1abc9c', '#f39c12', '#d35400', '#8e44ad', '#16a085']
+
+
+def _show_waypoint_preview(spec: dict) -> None:
+    """Compute areas + waypoints from spec and show a matplotlib figure (blocking)."""
+    import importlib.util, matplotlib.pyplot as plt
+    from matplotlib.patches import Polygon as MplPolygon
+    from matplotlib.collections import PatchCollection
+    import numpy as np
+
+    def _load(name):
+        p = SCRIPT_DIR / f'{name}.py'
+        s = importlib.util.spec_from_file_location(name, p)
+        m = importlib.util.module_from_spec(s); s.loader.exec_module(m)
+        return m
+
+    gm = _load('generate_mission')
+
+    arena_half     = float(spec.get('arena', {}).get('half', 10.0))
+    area_cfg       = spec.get('areas', {})
+    layout         = area_cfg.get('layout', 'grid_areas')
+    prefix         = area_cfg.get('prefix', 'area')
+    world_cfg      = spec.get('world', {})
+    street_spacing = float(world_cfg.get('street_spacing', 1.0))
+    wp_space       = float(world_cfg.get('wp_space', 1.0))
+    cov_height     = float(world_cfg.get('height', 5.0))
+    orient_raw     = world_cfg.get('orientation')
+    orientation    = float(orient_raw) if orient_raw is not None else None
+    n_drones       = int(spec.get('drones', {}).get('count', 1))
+    start_cfg      = spec.get('drones', {}).get('start', {})
+
+    if layout == 'grid_areas':
+        areas = gm.generate_grid_areas(
+            rows=int(area_cfg.get('rows', 2)), cols=int(area_cfg.get('cols', 3)),
+            arena_half=arena_half, prefix=prefix)
+    elif layout == 'strip_areas':
+        areas = gm.generate_strip_areas(
+            count=int(area_cfg.get('count', 3)), axis=area_cfg.get('axis', 'y'),
+            arena_half=arena_half, prefix=prefix)
+    elif layout == 'custom':
+        areas = gm.generate_custom_areas(area_cfg.get('polygons', []))
+    else:
+        areas = []
+
+    waypoints = gm.waypoints_for_areas(areas, cov_height, street_spacing, wp_space, orientation)
+
+    if start_cfg.get('strategy') == 'custom' and start_cfg.get('positions'):
+        drone_pos = [(float(p[0]), float(p[1])) for p in start_cfg['positions'][:n_drones]]
+    else:
+        x_start = float(start_cfg.get('x', -arena_half))
+        drone_pos = gm.place_left_edge(n_drones, arena_half, x_start)
+
+    fig, ax = plt.subplots(figsize=(8, 8))
+    ax.set_aspect('equal')
+    ax.set_facecolor('#1a1a2e')
+    fig.patch.set_facecolor('#1a1a2e')
+
+    # arena boundary
+    rect = plt.Rectangle((-arena_half, -arena_half), 2 * arena_half, 2 * arena_half,
+                          fill=False, edgecolor='#555577', linewidth=1.5, linestyle='--')
+    ax.add_patch(rect)
+
+    # areas
+    for i, area in enumerate(areas):
+        verts = [(v['x'], v['y']) for v in area['vertices']]
+        poly  = MplPolygon(verts, closed=True,
+                           facecolor=_AREA_COLORS[i % len(_AREA_COLORS)] + '22',
+                           edgecolor=_AREA_COLORS[i % len(_AREA_COLORS)], linewidth=1.2)
+        ax.add_patch(poly)
+        cx = sum(v[0] for v in verts) / len(verts)
+        cy = sum(v[1] for v in verts) / len(verts)
+        ax.text(cx, cy, area['name'], color='white', fontsize=7,
+                ha='center', va='center', alpha=0.7)
+
+    # waypoints
+    if waypoints:
+        xs = [w[0] for w in waypoints]
+        ys = [w[1] for w in waypoints]
+        ax.scatter(xs, ys, s=12, color='#f1c40f', zorder=3, alpha=0.85, label=f'{len(waypoints)} waypoints')
+
+    # drone starting positions
+    for i, (dx, dy) in enumerate(drone_pos):
+        color = _DRONE_COLORS[i % len(_DRONE_COLORS)]
+        ax.plot(dx, dy, marker='^', markersize=10, color=color, zorder=5,
+                label=f'drone{i}')
+
+    ax.set_xlim(-arena_half * 1.1, arena_half * 1.1)
+    ax.set_ylim(-arena_half * 1.1, arena_half * 1.1)
+    ax.tick_params(colors='#aaaaaa')
+    for spine in ax.spines.values():
+        spine.set_edgecolor('#444466')
+    ax.set_title(f"{spec.get('name', 'preview')} — {len(areas)} areas, "
+                 f"{len(waypoints)} wps, {n_drones} drones",
+                 color='white', fontsize=11)
+    ax.legend(loc='upper right', fontsize=8, facecolor='#2a2a4e', labelcolor='white',
+              framealpha=0.8)
+    ax.grid(True, color='#333355', linewidth=0.5, alpha=0.5)
+
+    plt.tight_layout()
+    plt.show()
 
 
 # ---------------------------------------------------------------------------
@@ -91,6 +196,55 @@ def _get_widget_value(screen, *ids: str, default: str = '') -> str:
     return default
 
 
+def _parse_sweep_values(s: str) -> list:
+    """Parse comma-separated string into a typed list (int > float > str)."""
+    result = []
+    for part in s.split(','):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            result.append(int(part))
+        except ValueError:
+            try:
+                result.append(float(part))
+            except ValueError:
+                result.append(part)
+    return result
+
+
+_SWEEP_PARAMS: list[tuple[str, str]] = [
+    ('drones.count — number of drones',       'drones.count'),
+    ('arena.half — arena half-size (m)',       'arena.half'),
+    ('world.street_spacing — lane width (m)',  'world.street_spacing'),
+    ('world.wp_space — waypoint spacing (m)',  'world.wp_space'),
+    ('world.height — coverage height (m)',     'world.height'),
+    ('world.speed — coverage speed (m/s)',     'world.speed'),
+    ('world.orientation — sweep angle (°)',    'world.orientation'),
+    ('areas.rows — grid rows',                 'areas.rows'),
+    ('areas.cols — grid cols',                 'areas.cols'),
+    ('areas.count — strip count',              'areas.count'),
+    ('mission.takeoff_height — takeoff (m)',   'mission.takeoff_height'),
+    ('experiment.times — repetitions',         'experiment.times'),
+]
+
+
+class SweepAxisRow(Horizontal):
+    """One sweep axis: param dropdown + comma-separated values + remove button."""
+
+    def __init__(self, param: str = '', values_str: str = '') -> None:
+        super().__init__(classes='sweep-row')
+        self._param = param
+        self._values_str = values_str
+
+    def compose(self) -> ComposeResult:
+        known_values = [v for _, v in _SWEEP_PARAMS]
+        sel_value = self._param if self._param in known_values else _SWEEP_PARAMS[0][1]
+        yield Select(_SWEEP_PARAMS, value=sel_value, classes='sweep-param-sel')
+        yield Input(self._values_str, placeholder='3, 5, 7', classes='sweep-values')
+        yield Button('✕', classes='sweep-rm', variant='error')
+
+
 # ---------------------------------------------------------------------------
 # Shared: command display modal
 # ---------------------------------------------------------------------------
@@ -100,21 +254,42 @@ class CommandModal(ModalScreen):
 
     def __init__(self, cmd: list[str]) -> None:
         super().__init__()
-        # show relative paths so the command is clean to copy-paste
+        self._base_cmd = [a for a in cmd if a != '--assume-running']
+        self._update_cmd(assume_running=False)
+
+    def _update_cmd(self, assume_running: bool) -> None:
+        self._cmd_list = self._base_cmd + (['--assume-running'] if assume_running else [])
         self._cmd_str = ' '.join(
             str(Path(p).relative_to(SCRIPT_DIR)) if Path(p).is_absolute()
             and Path(p).is_relative_to(SCRIPT_DIR) else p
-            for p in cmd
+            for p in self._cmd_list
         )
 
     def compose(self) -> ComposeResult:
         with Vertical(id='cmd-dialog'):
-            yield Static('Run command', id='cmd-title')
-            yield Static('From the project directory:', id='cmd-hint')
+            yield Static('Run experiments', id='cmd-title')
+            yield Checkbox('Simulation already running (--assume-running)', id='chk-assume')
+            yield Static('Command:', id='cmd-hint')
             yield Static(self._cmd_str, id='cmd-text')
             with Horizontal(id='cmd-buttons'):
-                yield Button('Copy', variant='success', id='btn-cmd-copy')
+                yield Button('Run',   variant='primary', id='btn-cmd-run')
+                yield Button('Copy',  variant='success', id='btn-cmd-copy')
                 yield Button('Close', variant='default', id='btn-cmd-close')
+
+    @on(Checkbox.Changed, '#chk-assume')
+    def _toggle_assume(self, event: Checkbox.Changed) -> None:
+        self._update_cmd(assume_running=event.value)
+        self.query_one('#cmd-text', Static).update(self._cmd_str)
+
+    @on(Button.Pressed, '#btn-cmd-run')
+    def _run(self) -> None:
+        with self.app.suspend():
+            print(f'\n$ {self._cmd_str}\n', flush=True)
+            result = subprocess.run(self._cmd_list, cwd=str(SCRIPT_DIR))
+            print(f'\n[experiments finished — exit code {result.returncode}]')
+            print('Press Enter to return to TUI...', end='', flush=True)
+            input()
+        self.dismiss()
 
     @on(Button.Pressed, '#btn-cmd-copy')
     def _copy(self) -> None:
@@ -157,6 +332,73 @@ class ConfirmModal(ModalScreen[bool]):
     @on(Button.Pressed, '#btn-cancel')
     def action_cancel(self) -> None:
         self.dismiss(False)
+
+
+class NameInputModal(ModalScreen[Optional[str]]):
+    """Prompts for a run directory name before launching experiments."""
+    BINDINGS = [Binding('escape', 'cancel')]
+
+    def __init__(self, message: str, default: str) -> None:
+        super().__init__()
+        self._message = message
+        self._default = default
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id='confirm-dialog'):
+            yield Static(self._message, id='confirm-msg')
+            yield Input(self._default, placeholder='run_name', id='inp-run-dir-name')
+            with Horizontal(id='confirm-buttons'):
+                yield Button('Cancel', variant='default', id='btn-cancel')
+                yield Button('Run',    variant='success',  id='btn-confirm')
+
+    def on_mount(self) -> None:
+        self.query_one('#inp-run-dir-name', Input).focus()
+
+    @on(Input.Submitted, '#inp-run-dir-name')
+    def _submit(self) -> None:
+        self._confirm()
+
+    @on(Button.Pressed, '#btn-confirm')
+    def _confirm(self) -> None:
+        name = self.query_one('#inp-run-dir-name', Input).value.strip()
+        self.dismiss(name or self._default)
+
+    @on(Button.Pressed, '#btn-cancel')
+    def action_cancel(self) -> None:
+        self.dismiss(None)
+
+
+class _YamlDirectoryTree(DirectoryTree):
+    def filter_paths(self, paths):
+        return [p for p in paths if p.is_dir() or p.suffix == '.yaml']
+
+
+class FileBrowserModal(ModalScreen[Optional[Path]]):
+    """Browse the filesystem and pick a .yaml file."""
+    BINDINGS = [Binding('escape', 'cancel')]
+
+    def __init__(self, start_dir: Path, title: str = 'Select a YAML file') -> None:
+        super().__init__()
+        self._start_dir = start_dir
+        self._title = title
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id='filebrowser-dialog'):
+            yield Static(self._title, id='filebrowser-title')
+            yield _YamlDirectoryTree(str(self._start_dir), id='filebrowser-tree')
+            with Horizontal(id='confirm-buttons'):
+                yield Button('Cancel', variant='default', id='btn-cancel')
+
+    def on_mount(self) -> None:
+        self.query_one('#filebrowser-tree', _YamlDirectoryTree).focus()
+
+    @on(DirectoryTree.FileSelected)
+    def _file_selected(self, event: DirectoryTree.FileSelected) -> None:
+        self.dismiss(event.path)
+
+    @on(Button.Pressed, '#btn-cancel')
+    def action_cancel(self) -> None:
+        self.dismiss(None)
 
 
 # ---------------------------------------------------------------------------
@@ -290,9 +532,6 @@ class EditSpecScreen(Screen):
         exp     = s.get('experiment', {})
         failure  = exp.get('failure', {})
         reinspect = exp.get('reinspect', {})
-        sweep_text = (yaml.dump(s['sweep'], default_flow_style=False)
-                      if 'sweep' in s else '')
-
         yield Header()
         with VerticalScroll(id='edit-scroll'):
 
@@ -395,6 +634,12 @@ class EditSpecScreen(Screen):
                         yield Label('Coverage speed (m/s)', classes='field-label')
                         yield Input(str(world.get('speed', 2.0)),
                                     placeholder='2.0', id='inp-cov-speed')
+                with Horizontal():
+                    with Vertical():
+                        yield Label('Street orientation °  (blank = auto)', classes='field-label')
+                        orient_val = world.get('orientation')
+                        yield Input('' if orient_val is None else str(orient_val),
+                                    placeholder='auto', id='inp-orientation')
                 yield Label('SDF output dir (optional — generates Gazebo world)',
                             classes='field-label')
                 yield Input(world.get('output_dir', ''),
@@ -450,14 +695,19 @@ class EditSpecScreen(Screen):
                                         placeholder='45.0', id='inp-ri-delay')
 
             # ── sweep ─────────────────────────────────────────────────────
-            with Collapsible(title='Sweep parameters (YAML)', collapsed=not sweep_text):
-                yield Label('List of {param, values} — one per axis. e.g.:\n'
-                            '- param: drones.count\n  values: [3, 5, 7]',
+            sweep_data = s.get('sweep', [])
+            with Collapsible(title='Sweep parameters', collapsed=not sweep_data):
+                yield Label('Each axis is swept; all axes are combined (cartesian product).',
                             classes='field-label')
-                yield TextArea(sweep_text, id='ta-sweep', language='yaml')
+                with Vertical(id='sweep-axes'):
+                    for axis in sweep_data:
+                        vals_str = ', '.join(str(v) for v in axis.get('values', []))
+                        yield SweepAxisRow(axis.get('param', ''), vals_str)
+                yield Button('+ Add sweep axis', id='btn-add-sweep-axis', variant='default')
 
         with Horizontal(id='edit-footer'):
             yield Button('Cancel',       variant='default', id='btn-cancel')
+            yield Button('Preview',      variant='default', id='btn-preview')
             yield Button('Save',         variant='primary',  id='btn-save')
             yield Button('Save & Run',   variant='success',  id='btn-save-run')
         yield Footer()
@@ -494,6 +744,14 @@ class EditSpecScreen(Screen):
     def _layout_changed(self) -> None:
         self._update_layout_visibility()
 
+    @on(Button.Pressed, '#btn-add-sweep-axis')
+    def _add_sweep_axis(self) -> None:
+        self.query_one('#sweep-axes').mount(SweepAxisRow())
+
+    @on(Button.Pressed, '.sweep-rm')
+    def _remove_sweep_axis(self, event: Button.Pressed) -> None:
+        event.button.parent.remove()
+
     # -- actions --------------------------------------------------------------
 
     def action_cancel(self) -> None:
@@ -514,6 +772,14 @@ class EditSpecScreen(Screen):
         result = self._collect()
         if result:
             self.dismiss((result, True))
+
+    @on(Button.Pressed, '#btn-preview')
+    def _preview(self) -> None:
+        spec = self._collect()
+        if spec is None:
+            return
+        with self.app.suspend():
+            _show_waypoint_preview(spec)
 
     def _f(self, widget_id: str, default: str = '') -> str:
         return _get_widget_value(self, widget_id, default=default)
@@ -589,6 +855,12 @@ class EditSpecScreen(Screen):
             'height':         self._float('#inp-cov-height', 5.0),
             'speed':          self._float('#inp-cov-speed', 2.0),
         }
+        orient_str = self._f('#inp-orientation').strip()
+        if orient_str:
+            try:
+                world_cfg['orientation'] = float(orient_str)
+            except ValueError:
+                self.notify('Orientation must be a number (degrees)', severity='warning')
         sdf_dir = self._f('#inp-sdf-dir')
         if sdf_dir:
             world_cfg['output_dir'] = sdf_dir
@@ -646,13 +918,17 @@ class EditSpecScreen(Screen):
             spec['experiment'] = exp_cfg
 
         # sweep
-        sweep_text = self.query_one('#ta-sweep', TextArea).text.strip()
-        if sweep_text:
-            try:
-                spec['sweep'] = yaml.safe_load(sweep_text)
-            except yaml.YAMLError as e:
-                self.notify(f'Sweep YAML error: {e}', severity='error')
-                return None
+        axes = []
+        for row in self.query(SweepAxisRow):
+            sel      = row.query_one('.sweep-param-sel', Select)
+            param    = '' if sel.value is Select.BLANK else str(sel.value)
+            vals_str = row.query_one('.sweep-values', Input).value.strip()
+            if param and vals_str:
+                vals = _parse_sweep_values(vals_str)
+                if vals:
+                    axes.append({'param': param, 'values': vals})
+        if axes:
+            spec['sweep'] = axes
 
         return spec
 
@@ -740,7 +1016,9 @@ class SpecMainScreen(Screen):
         return self._specs[table.cursor_row]
 
     def _run_spec(self, spec: dict, generate_only: bool = False) -> None:
-        tmp = SCRIPT_DIR / f'.tui_{spec["name"]}_spec.yaml'
+        spec_dir = SCRIPT_DIR / 'specs'
+        spec_dir.mkdir(exist_ok=True)
+        tmp = spec_dir / f'.tui_{spec["name"]}_spec.yaml'
         tmp.write_text(yaml.dump(spec, default_flow_style=False, sort_keys=False))
         cmd = [sys.executable, str(SCRIPT_DIR / 'generate_mission.py'), str(tmp)]
         if generate_only:
@@ -805,19 +1083,13 @@ class SpecMainScreen(Screen):
 
     @on(Button.Pressed, '#btn-load')
     def action_load(self) -> None:
-        candidates = sorted(SCRIPT_DIR.glob('*.yaml'))
-        for c in candidates:
-            if c != self._config_path:
-                try:
-                    data = yaml.safe_load(c.read_text()) or {}
-                    if 'specs' in data or 'name' in data:
-                        self._load_from_file(c)
-                        self._refresh_table()
-                        self.notify(f'Loaded {c.name}')
-                        return
-                except Exception:
-                    pass
-        self.notify('No other spec YAML files found.', severity='warning')
+        def _done(path: Optional[Path]) -> None:
+            if path is None:
+                return
+            self._load_from_file(path)
+            self._refresh_table()
+            self.notify(f'Loaded {path.name}')
+        self.app.push_screen(FileBrowserModal(SCRIPT_DIR, 'Select a spec YAML file'), _done)
 
     @on(Button.Pressed, '#btn-gen')
     def action_generate(self) -> None:
@@ -1190,31 +1462,38 @@ class MainScreen(Screen):
 
     @on(Button.Pressed, '#btn-load')
     def action_load(self) -> None:
-        candidates = sorted(
-            list(SCRIPT_DIR.glob('*experiments*.yaml')) +
-            list((SCRIPT_DIR / 'experiments').glob('*.yaml')
-                 if (SCRIPT_DIR / 'experiments').exists() else [])
-        )
-        for c in candidates:
-            if c != self._config_path:
-                self._load_from_file(c)
-                self._refresh_table()
-                self.notify(f'Loaded {c.name}')
+        def _done(path: Optional[Path]) -> None:
+            if path is None:
                 return
-        self.notify('No other experiment YAML files found.', severity='warning')
+            self._load_from_file(path)
+            self._refresh_table()
+            self.notify(f'Loaded {path.name}')
+        self.app.push_screen(FileBrowserModal(SCRIPT_DIR, 'Select an experiments YAML file'), _done)
 
     @on(Button.Pressed, '#btn-run')
     def action_run_all(self) -> None:
         if not self._runs:
             self.notify('No runs configured.', severity='warning')
             return
-        exp_dir = SCRIPT_DIR / 'experiments'
-        exp_dir.mkdir(exist_ok=True)
-        tmp = exp_dir / self._config_path.name
-        self._save_to_file(tmp)
-        cmd = [sys.executable, str(SCRIPT_DIR / 'run_experiments.py'),
-               '--config', str(tmp), '--assume-running']
-        self.app.push_screen(CommandModal(cmd))
+        default_name = datetime.now().strftime('run_%Y%m%d_%H%M%S')
+
+        def _done(name: Optional[str]) -> None:
+            if not name:
+                return
+            results_dir = SCRIPT_DIR / 'results' / name
+            results_dir.mkdir(parents=True, exist_ok=True)
+            exp_dir = SCRIPT_DIR / 'experiments'
+            exp_dir.mkdir(exist_ok=True)
+            tmp = exp_dir / self._config_path.name
+            self._save_to_file(tmp)
+            cmd = [sys.executable, str(SCRIPT_DIR / 'run_experiments.py'),
+                   '--config', str(tmp), '--results-dir', str(results_dir)]
+            self.app.push_screen(CommandModal(cmd))
+
+        self.app.push_screen(
+            NameInputModal('Name for this run\'s results directory:', default_name),
+            _done,
+        )
 
 
 # ===========================================================================
@@ -1297,6 +1576,23 @@ STYLESHEET = """
 TextArea {
     height: 6;
 }
+.sweep-row {
+    height: 3;
+    margin-bottom: 1;
+}
+.sweep-param-sel {
+    width: 3fr;
+}
+.sweep-values {
+    width: 2fr;
+}
+.sweep-rm {
+    width: 5;
+    min-width: 5;
+}
+#btn-add-sweep-axis {
+    margin-top: 1;
+}
 
 /* ── run screen ───────────────────────────────────────────── */
 #run-status {
@@ -1320,7 +1616,7 @@ TextArea {
 }
 
 /* ── confirm modal ────────────────────────────────────────── */
-ConfirmModal {
+ConfirmModal, NameInputModal {
     align: center middle;
 }
 #confirm-dialog {
@@ -1334,12 +1630,36 @@ ConfirmModal {
     text-align: center;
     margin-bottom: 2;
 }
+#inp-run-dir-name {
+    margin-bottom: 2;
+}
 #confirm-buttons {
     align: center middle;
     height: auto;
 }
 #confirm-buttons Button {
     margin: 0 2;
+}
+
+/* ── file browser modal ──────────────────────────────────── */
+FileBrowserModal {
+    align: center middle;
+}
+#filebrowser-dialog {
+    width: 70;
+    height: 30;
+    border: solid $primary;
+    padding: 1 2;
+    background: $surface;
+}
+#filebrowser-title {
+    text-align: center;
+    margin-bottom: 1;
+}
+#filebrowser-tree {
+    height: 1fr;
+    border: solid $primary-darken-1;
+    margin-bottom: 1;
 }
 
 /* ── command modal ────────────────────────────────────────── */

@@ -7,7 +7,7 @@
       "one_shot": false,
       "models": [],
       "func": {
-        "path": "/root/project_coresense/config/kb_handlers_pause.py",
+        "path": "/root/projects/project_coresense/config/kb_handlers_pause.py",
         "name": "kb_handlers",
         "func_name": "on_auction_started"
       }
@@ -18,9 +18,20 @@
       "one_shot": false,
       "models": [],
       "func": {
-        "path": "/root/project_coresense/config/kb_handlers_pause.py",
+        "path": "/root/projects/project_coresense/config/kb_handlers_pause.py",
         "name": "kb_handlers",
         "func_name": "on_auction_completed"
+      }
+    },
+    {
+      "id": "reinspect_on_panel_anomaly",
+      "patterns": ["?panel panelStatus anomaly"],
+      "one_shot": false,
+      "models": [],
+      "func": {
+        "path": "/root/projects/project_coresense/config/kb_handlers_pause.py",
+        "name": "kb_handlers",
+        "func_name": "on_panel_anomaly"
       }
     },
     {
@@ -29,7 +40,7 @@
       "one_shot": false,
       "models": [],
       "func": {
-        "path": "/root/project_coresense/config/kb_handlers_pause.py",
+        "path": "/root/projects/project_coresense/config/kb_handlers_pause.py",
         "name": "kb_handlers",
         "func_name": "on_drone_failure"
       }

@@ -1,0 +1,40 @@
+status: request
+id: OneWaypointTest
+use_cartesian_coordinates: true
+takeoff_height: 3.0
+uavList: [drone0]
+layers:
+
+  - name: Area
+    uavList: [auto]
+    height: 5.0
+    speed: 2.0
+    algorithm: back_and_force
+    streetSpacing: 8.0
+    wpSpace: 2.0
+    orientation: 0.0
+    values:
+      - [-8.0, -12.0]
+      - [-2.0, -12.0]
+      - [-2.0,  12.0]
+      - [-8.0,  12.0]
+
+  - name: Area
+    uavList: [auto]
+    height: 5.0
+    speed: 2.0
+    algorithm: back_and_force
+    streetSpacing: 8.0
+    wpSpace: 2.0
+    orientation: 0.0
+    values:
+      - [ 2.0, -12.0]
+      - [ 8.0, -12.0]
+      - [ 8.0,  12.0]
+      - [ 2.0,  12.0]
+
+  - name: LandPoint
+    uavList: [drone0]
+    height: 0.0
+    speed: 1.0
+    values: [0.0, 0.0]

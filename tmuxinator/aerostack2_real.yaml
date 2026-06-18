@@ -16,9 +16,16 @@ windows:
       panes:
       # Platform
       <%- if base_launch %>
-      - ros2 launch as2_platform_crazyflie crazyflie_swarm_launch.py
+      - ros2 launch as2_platform_crazyswarm crazyswarm_server.launch.py
+          crazyflies_yaml_file:=config/crazyflies.yaml
+          server_yaml_file:=/root/platforms_ws/src/crazyswarm2/crazyflie/config/server.yaml
+          urdf_file:=/root/platforms_ws/src/crazyswarm2/crazyflie/urdf/crazyflie_description.urdf
+          mocap:=true
+          mocap_config_file:=config/config_real.yaml
+      - sleep 2; ros2 launch as2_platform_crazyswarm crazyswarm_swarm_launch.py
           swarm_config_file:=config/config_real.yaml
       <%- else %>
+      - echo "Platform already launched in the first tmux session"
       - echo "Platform already launched in the first tmux session"
       <%- end %>
 
@@ -44,10 +51,6 @@ windows:
       panes:
         # Motion Behaviors
         - ros2 launch as2_behaviors_motion motion_behaviors_launch.py
-            namespace:=<%= drone_namespace %>
-            config_file:=config/config_real.yaml
-        # Trajectory Generation Behavior
-        - ros2 launch as2_behaviors_trajectory_generation generate_polynomial_trajectory_behavior_launch.py
             namespace:=<%= drone_namespace %>
             config_file:=config/config_real.yaml
         # Auction Behavior

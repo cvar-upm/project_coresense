@@ -22,8 +22,32 @@ import json
 from as2_msgs.msg import MissionUpdate
 from as2_python_api.kb_monitor.kb_event_handler import KBHandlerContext
 
-FOLLOW_PATH_SPEED = 1.0  # m/s
-FOLLOW_PATH_HEIGHT = 1.0  # meters (z kept constant; auction assigns 2-D points)
+FOLLOW_PATH_SPEED = 2.0  # m/s
+FOLLOW_PATH_HEIGHT = 5.0  # meters (z kept constant; auction assigns 2-D points)
+
+
+def _dist2(a: list, b: list) -> float:
+    return (a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2
+
+
+def _two_opt(path: list) -> list:
+    """Improve an open path with 2-opt edge swaps until no improvement is found."""
+    best = path[:]
+    n = len(best)
+    improved = True
+    while improved:
+        improved = False
+        for i in range(n - 1):
+            for j in range(i + 2, n):
+                d_before = _dist2(best[i], best[i + 1])
+                d_after = _dist2(best[i], best[j])
+                if j + 1 < n:
+                    d_before += _dist2(best[j], best[j + 1])
+                    d_after += _dist2(best[i + 1], best[j + 1])
+                if d_after < d_before - 1e-10:
+                    best[i + 1 : j + 1] = best[i + 1 : j + 1][::-1]
+                    improved = True
+    return best
 
 
 def on_auction_started(bindings: list, ctx: KBHandlerContext) -> None:
@@ -98,13 +122,8 @@ def on_drone_failure(bindings: list, ctx: KBHandlerContext) -> None:
         )
         return
 
-    # Query all known drones (those with any auctionStatus), exclude the failing drone
-    bidders = [
-        'drone0',
-        'drone2',
-        'drone3',
-        # 'drone4',
-    ]  # hardcoded for simplicity; in practice, query the KB for active drones
+    # Discover active drones from the ROS graph, exclude the failing drone
+    bidders = [ns for ns in ctx.get_active_namespaces() if ns != ctx.drone_namespace]
 
     if not bidders:
         print(f'[kb_monitor] {ctx.drone_namespace}: no available bidders for re-auction')
@@ -146,6 +165,65 @@ def on_drone_failure(bindings: list, ctx: KBHandlerContext) -> None:
     print(
         f'[kb_monitor] {ctx.drone_namespace}: sent re-auction mission '
         f'for {len(elements)} point(s) to bidders {bidders}'
+    )
+
+
+def on_panel_anomaly(bindings: list, ctx: KBHandlerContext) -> None:
+    """Re-inspect a panel, then continue with all remaining unvisited waypoints."""
+    panel_id = bindings[0]['panel']
+
+    panel_result = ctx.query([
+        f'{panel_id} assignedTo {ctx.drone_namespace}',
+        f'{panel_id} xCoord ?x',
+        f'{panel_id} yCoord ?y',
+    ])
+
+    if not panel_result:
+        return  # panel not assigned to this drone
+
+    x, y = float(panel_result[0]['x']), float(panel_result[0]['y'])
+    print(f'[kb_monitor] {ctx.drone_namespace}: re-inspecting {panel_id} at ({x:.2f}, {y:.2f})')
+
+    assigned = ctx.query([
+        f'?point assignedTo {ctx.drone_namespace}',
+        '?point xCoord ?x',
+        '?point yCoord ?y',
+    ])
+    finished = ctx.query([
+        f'?point assignedTo {ctx.drone_namespace}',
+        '?goto status finished',
+        '?goto to ?point',
+        '?point xCoord ?x',
+        '?point yCoord ?y',
+    ])
+    finished_points = {r['point'] for r in finished}
+    remaining = [
+        r for r in assigned
+        if r['point'] not in finished_points and r['point'] != panel_id
+    ]
+
+    remaining_path = _two_opt(
+        [[float(r['x']), float(r['y']), FOLLOW_PATH_HEIGHT] for r in remaining]
+    )
+
+    plan = [{'behavior': 'go_to', 'args': {'x': x, 'y': y, 'z': FOLLOW_PATH_HEIGHT,
+                                            'speed': FOLLOW_PATH_SPEED}}]
+    plan += [
+        {'behavior': 'collision_avoidance',
+         'args': {'x': pt[0], 'y': pt[1], 'z': pt[2], 'speed': FOLLOW_PATH_SPEED}}
+        for pt in remaining_path
+    ]
+
+    mission = {'target': ctx.drone_namespace, 'plan': plan}
+    msg = MissionUpdate()
+    msg.drone_id = ctx.drone_namespace
+    msg.mission_id = (ctx.mission_status.mission_id + 10) if ctx.mission_status else 10
+    msg.action = MissionUpdate.EXECUTE
+    msg.mission = json.dumps(mission)
+    ctx.publish_mission_update(msg)
+    print(
+        f'[kb_monitor] {ctx.drone_namespace}: sent reinspect + {len(remaining_path)} '
+        f'remaining waypoint(s) for {panel_id}'
     )
 
 
@@ -231,6 +309,8 @@ def on_auction_completed(bindings: list, ctx: KBHandlerContext) -> None:
         sorted_path.append(closest_point)
         remaining_points.remove(closest_point)
         current_pos = closest_point
+
+    sorted_path = _two_opt(sorted_path)
 
     plan = [
         {

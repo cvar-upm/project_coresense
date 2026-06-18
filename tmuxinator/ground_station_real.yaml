@@ -2,7 +2,7 @@
 # Input parameters
 drone_namespace = @settings["drone_namespace"]
 keyboard_teleop = @settings["keyboard_teleop"] == "true"
-rviz            = @settings["rviz"] == "true"
+rviz            = @settings["rviz"] == "false"
 rosbag          = @settings["rosbag"] == "true"
 mocap4ros2      = @settings["mocap4ros2"] == "true"
 %>
@@ -39,14 +39,10 @@ windows:
       <%- if rosbag %>
         - ./rosbag/record_rosbag.bash <%= drone_namespace %>
       <%- end %>
-  - mission:
-      layout:
-      panes:
-          - ros2 run knowledge_core kb_tui
   - mocap:
       <%- if mocap4ros2 %>
         - ros2 launch mocap4r2_optitrack_driver optitrack2.launch.py
             namespace:=mocap
-            config_file:=config_ground_station/mocap4r2_optitrack.yaml
-        - sleep 1; ros2 lifecycle set /mocap/mocap4r2_optitrack_driver_node activate
+            config_file:=config/mocap4ros.yaml
+        - sleep 1; ros2 lifecycle set /mocap/mocap4r2_optitrack_driver_node activate; sleep 5
       <%- end %>

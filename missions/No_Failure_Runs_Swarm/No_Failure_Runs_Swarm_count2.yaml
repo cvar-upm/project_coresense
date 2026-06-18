@@ -1,0 +1,133 @@
+status: request
+id: No_Failure_Runs_Swarm_count2
+use_cartesian_coordinates: true
+takeoff_height: 5.0
+max_wp_distance: null
+uavList:
+- drone0
+- drone1
+layers:
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 2.5
+  orientation: 0.0
+  values:
+  - - -9.0
+    - 0.0
+  - - -3.0
+    - 0.0
+  - - -3.0
+    - 9.0
+  - - -9.0
+    - 9.0
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 2.5
+  orientation: 0.0
+  values:
+  - - -3.0
+    - 0.0
+  - - 3.0
+    - 0.0
+  - - 3.0
+    - 9.0
+  - - -3.0
+    - 9.0
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 2.5
+  orientation: 0.0
+  values:
+  - - 3.0
+    - 0.0
+  - - 9.0
+    - 0.0
+  - - 9.0
+    - 9.0
+  - - 3.0
+    - 9.0
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 2.5
+  orientation: 0.0
+  values:
+  - - -9.0
+    - -9.0
+  - - -3.0
+    - -9.0
+  - - -3.0
+    - 0.0
+  - - -9.0
+    - 0.0
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 2.5
+  orientation: 0.0
+  values:
+  - - -3.0
+    - -9.0
+  - - 3.0
+    - -9.0
+  - - 3.0
+    - 0.0
+  - - -3.0
+    - 0.0
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 2.5
+  orientation: 0.0
+  values:
+  - - 3.0
+    - -9.0
+  - - 9.0
+    - -9.0
+  - - 9.0
+    - 0.0
+  - - 3.0
+    - 0.0
+- name: LandPoint
+  uavList:
+  - drone0
+  height: 0.0
+  speed: 1.0
+  values:
+  - 0.0
+  - 0.0
+- name: LandPoint
+  uavList:
+  - drone1
+  height: 0.0
+  speed: 1.0
+  values:
+  - 0.0
+  - 0.0

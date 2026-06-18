@@ -1,0 +1,88 @@
+status: request
+id: Test run_count3
+use_cartesian_coordinates: true
+takeoff_height: 5.0
+max_wp_distance: 10.0
+uavList:
+- drone0
+- drone1
+- drone2
+layers:
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 1.5
+  orientation: 0.0
+  values:
+  - - -10.0
+    - 3.333
+  - - 10.0
+    - 3.333
+  - - 10.0
+    - 10.0
+  - - -10.0
+    - 10.0
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 1.5
+  orientation: 0.0
+  values:
+  - - -10.0
+    - -3.334
+  - - 10.0
+    - -3.334
+  - - 10.0
+    - 3.333
+  - - -10.0
+    - 3.333
+- name: Area
+  uavList:
+  - auto
+  height: 5.0
+  speed: 2.0
+  algorithm: back_and_force
+  streetSpacing: 2.0
+  wpSpace: 1.5
+  orientation: 0.0
+  values:
+  - - -10.0
+    - -10.0
+  - - 10.0
+    - -10.0
+  - - 10.0
+    - -3.333
+  - - -10.0
+    - -3.333
+- name: LandPoint
+  uavList:
+  - drone0
+  height: 0.0
+  speed: 1.0
+  values:
+  - 0.0
+  - 0.0
+- name: LandPoint
+  uavList:
+  - drone1
+  height: 0.0
+  speed: 1.0
+  values:
+  - 0.0
+  - 0.0
+- name: LandPoint
+  uavList:
+  - drone2
+  height: 0.0
+  speed: 1.0
+  values:
+  - 0.0
+  - 0.0

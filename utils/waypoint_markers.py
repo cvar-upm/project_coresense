@@ -215,7 +215,7 @@ class WaypointMarkerTracker:
             for mid, wp in self._pos_by_id.items():
                 if mid in self._visited:
                     continue
-                d = math.sqrt(sum((a - b) ** 2 for a, b in zip(pos, wp)))
+                d = math.sqrt((pos[0] - wp[0]) ** 2 + (pos[1] - wp[1]) ** 2)
                 if d < best_dist:
                     best_dist = d
                     best_id = mid

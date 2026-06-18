@@ -8,6 +8,7 @@ usage() {
     echo "      -r: record rosbag. Default not launch"
     echo "      -n: drone namespaces, comma separated. Default get from world description config file"
     echo "      -R: use real hardware tmuxinator config (ground_station_real.yaml). Default: simulation (ground_station.yaml)"
+    echo "      -M: disable mocap4ros2 OptiTrack driver (enabled by default when using -R)"
     echo "      -g: launch using gnome-terminal instead of tmux. Default not set"
 }
 
@@ -16,12 +17,13 @@ simulation_config="config/world.yaml"
 keyboard_teleop="false"
 rviz="true"
 rosbag="false"
+mocap4ros2="false"
 drones_namespace_comma=""
 use_gnome="false"
 tmuxinator_config="tmuxinator/ground_station.yaml"
 
 # Parse command line arguments
-while getopts "w:tvrn:Rg" opt; do
+while getopts "w:tvrn:RMg" opt; do
   case ${opt} in
     w )
       simulation_config="${OPTARG}"
@@ -40,6 +42,10 @@ while getopts "w:tvrn:Rg" opt; do
       ;;
     R )
       tmuxinator_config="tmuxinator/ground_station_real.yaml"
+      mocap4ros2="true"
+      ;;
+    M )
+      mocap4ros2="false"
       ;;
     g )
       use_gnome="true"
@@ -64,6 +70,10 @@ if [ -z "$drones_namespace_comma" ]; then
   drones_namespace_comma=$(python3 utils/get_drones.py -p ${simulation_config} --sep ',')
 fi
 
+# Generate a per-run RViz config with Camera displays matching the active drones
+rviz_config_path="/tmp/rviz2_config_gs_${drones_namespace_comma//,/_}.rviz"
+python3 utils/generate_rviz_config.py -n "${drones_namespace_comma}" -o "${rviz_config_path}"
+
 # Select between tmux and gnome-terminal
 tmuxinator_mode="start"
 tmuxinator_end="wait"
@@ -79,6 +89,8 @@ eval "tmuxinator ${tmuxinator_mode} -n ground_station -p ${tmuxinator_config} \
   keyboard_teleop=${keyboard_teleop} \
   rviz=${rviz} \
   rosbag=${rosbag} \
+  mocap4ros2=${mocap4ros2} \
+  rviz_config=${rviz_config_path} \
   ${tmuxinator_end}"
 
 # Attach to tmux session

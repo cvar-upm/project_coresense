@@ -1,0 +1,30 @@
+status: request
+id: New Mission
+use_cartesian_coordinates: true
+takeoff_height: 3.0
+max_wp_distance: 10.0
+uavList: [drone0]
+# failure_injection:
+#   drone0:
+#     at_waypoint: 3
+layers:
+
+  - name: Area
+    uavList: [auto]
+    height: 5.0
+    speed: 2.0
+    algorithm: back_and_force
+    streetSpacing: 1.0
+    wpSpace: 2.0
+    orientation: 0.0
+    values:
+      - [-3.0, -3.0]
+      - [ 3.0, -3.0]
+      - [ 3.0,  3.0]
+      - [-3.0,  3.0]
+
+  - name: LandPoint
+    uavList: [drone0]
+    height: 0.0
+    speed: 1.0
+    values: [0.0, 0.0]

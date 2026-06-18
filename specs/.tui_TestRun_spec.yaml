@@ -1,0 +1,25 @@
+name: TestRun
+arena:
+  half: 10.0
+drones:
+  count: 3
+  start:
+    strategy: left_edge
+    x: -10.0
+areas:
+  layout: strip_areas
+  prefix: area
+  count: 3
+  axis: y
+mission:
+  takeoff_height: 5.0
+world:
+  street_spacing: 1.0
+  wp_space: 1.0
+  height: 5.0
+  speed: 2.0
+output:
+  world_dir: config/
+  mission_dir: missions_test/
+experiment:
+  mode: centralized

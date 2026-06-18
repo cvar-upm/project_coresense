@@ -1,0 +1,159 @@
+<?xml version="1.0"?>
+
+<sdf version="1.6">
+    <world name="solar_field">
+        <physics name="4ms" type="ignored">
+            <max_step_size>0.004</max_step_size>
+            <real_time_factor>1.0</real_time_factor>
+        </physics>
+        <plugin
+            filename="gz-sim-physics-system"
+            name="gz::sim::systems::Physics">
+        </plugin>
+        <plugin
+            filename="gz-sim-scene-broadcaster-system"
+            name="gz::sim::systems::SceneBroadcaster">
+        </plugin>
+        <plugin
+            filename="gz-sim-user-commands-system"
+            name="gz::sim::systems::UserCommands">
+        </plugin>
+        <plugin
+            filename="gz-sim-sensors-system"
+            name="gz::sim::systems::Sensors">
+            <render_engine>ogre2</render_engine>
+        </plugin>
+
+        <light type="directional"
+            name="sun">
+            <cast_shadows>true</cast_shadows>
+            <pose>0 0 10 0 0 0</pose>
+            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <specular>0.2 0.2 0.2 1</specular>
+            <attenuation>
+                <range>1000</range>
+                <constant>0.9</constant>
+                <linear>0.01</linear>
+                <quadratic>0.001</quadratic>
+            </attenuation>
+            <direction>-0.5 0.1 -0.9</direction>
+        </light>
+
+        <scene>
+            <sky>
+                <clouds>
+                    <speed>2</speed>
+                </clouds>
+            </sky>
+        </scene>
+
+        <!-- <include>
+            <uri>model://ground_plane</uri>
+        </include> -->
+
+        <include>
+            <uri>model://grass_patch</uri>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel0</name>
+            <pose>20 3.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel1</name>
+            <pose>20 7.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel2</name>
+            <pose>20 10.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel3</name>
+            <pose>20 14.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel4</name>
+            <pose>20 17.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel5</name>
+            <pose>23.5 3.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel6</name>
+            <pose>23.5 7.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel7</name>
+            <pose>23.5 10.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel8</name>
+            <pose>23.5 14.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel9</name>
+            <pose>23.5 17.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel10</name>
+            <pose>27.0 3.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel11</name>
+            <pose>27.0 7.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel12</name>
+            <pose>27.0 10.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel13</name>
+            <pose>27.0 14.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel14</name>
+            <pose>27.0 17.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel15</name>
+            <pose>30.5 3.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel16</name>
+            <pose>30.5 7.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel17</name>
+            <pose>30.5 10.5 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel18</name>
+            <pose>30.5 14.0 0.45 0 0.6 3.14</pose>
+        </include>
+        <include>
+            <uri>model://solar_panel</uri>
+            <name>panel19</name>
+            <pose>30.5 17.5 0.45 0 0.6 3.14</pose>
+        </include>
+
+    </world>
+</sdf>

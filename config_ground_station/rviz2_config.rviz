@@ -9,6 +9,9 @@ Panels:
         - /TF1/Frames1
         - /TF1/Tree1
         - /Marker1
+        - /Camera drone01
+        - /Camera drone11
+        - /Camera drone21
       Splitter Ratio: 0.5382353067398071
     Tree Height: 643
   - Class: rviz_common/Selection
@@ -32,6 +35,17 @@ Panels:
 Visualization Manager:
   Class: ""
   Displays:
+    - Class: rviz_default_plugins/MarkerArray
+      Enabled: true
+      Name: SolarPanels
+      Namespaces:
+        solar_panels: true
+      Topic:
+        Depth: 10
+        Durability Policy: Transient Local
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /solar_panels
     - Alpha: 0.5
       Cell Size: 1
       Class: rviz_default_plugins/Grid
@@ -350,18 +364,18 @@ Visualization Manager:
       Update Interval: 0
       Value: false
     - Class: rviz_default_plugins/Camera
-      Enabled: false
-      Far Plane Distance: 100
+      Enabled: true
+      Far Plane Distance: 1000
       Image Rendering: background and overlay
-      Name: Camera
+      Name: Camera drone0
       Overlay Alpha: 0.5
       Topic:
         Depth: 5
         Durability Policy: Volatile
         History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /drone0/sensor_measurements/camera/image
-      Value: false
+        Reliability Policy: Best Effort
+        Value: /drone0/sensor_measurements/image_with_markers
+      Value: true
       Visibility:
         Grid: true
         HistoryPoses: true
@@ -369,6 +383,55 @@ Visualization Manager:
         Path: true
         ReferencePose: true
         RobotModel: true
+        SolarPanels: true
+        TF: true
+        Value: true
+      Zoom Factor: 1
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 1000
+      Image Rendering: background and overlay
+      Name: Camera drone1
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /drone1/sensor_measurements/image_with_markers
+      Value: true
+      Visibility:
+        Grid: true
+        HistoryPoses: true
+        Marker: true
+        Path: true
+        ReferencePose: true
+        RobotModel: true
+        SolarPanels: true
+        TF: true
+        Value: true
+      Zoom Factor: 1
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 1000
+      Image Rendering: background and overlay
+      Name: Camera drone2
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Best Effort
+        Value: /drone2/sensor_measurements/image_with_markers
+      Value: true
+      Visibility:
+        Grid: true
+        HistoryPoses: true
+        Marker: true
+        Path: true
+        ReferencePose: true
+        RobotModel: true
+        SolarPanels: true
         TF: true
         Value: true
       Zoom Factor: 1
@@ -493,8 +556,12 @@ Visualization Manager:
       Yaw: 4.866692066192627
     Saved: ~
 Window Geometry:
-  Camera:
-    collapsed: true
+  Camera drone0:
+    collapsed: false
+  Camera drone1:
+    collapsed: false
+  Camera drone2:
+    collapsed: false
   Displays:
     collapsed: true
   Height: 1016

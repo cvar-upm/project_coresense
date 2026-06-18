@@ -1,0 +1,33 @@
+name: No_Failure_Runs
+arena:
+  half: 9.0
+drones:
+  count: 2
+  start:
+    strategy: left_edge
+    x: -10.0
+areas:
+  layout: grid_areas
+  prefix: area
+  rows: 2
+  cols: 3
+mission:
+  takeoff_height: 5.0
+world:
+  street_spacing: 2.0
+  wp_space: 2.5
+  height: 5.0
+  speed: 2.0
+output:
+  world_dir: config/
+  mission_dir: missions_no_failure_runs/
+experiment:
+  modes:
+  - centralized
+  - decentralized
+  times: 5
+sweep:
+- param: drones.count
+  values:
+  - 2
+  - 3
