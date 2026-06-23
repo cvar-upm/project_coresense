@@ -1,8 +1,0 @@
-runs:
-- name: No_Failure_Runs_Swarm
-  world_file: config/exp_config/No_Failure_Runs_Swarm/No_Failure_Runs_Swarm_count2.yaml
-  mission_dir: missions/No_Failure_Runs_Swarm
-  modes:
-  - centralized
-  - decentralized
-  times: 5

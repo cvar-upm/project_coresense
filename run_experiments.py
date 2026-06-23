@@ -24,6 +24,8 @@ Usage
     python3 run_experiments.py
     python3 run_experiments.py --results-dir /tmp/exp
     python3 run_experiments.py --stack-wait 25
+    python3 run_experiments.py --timeout 300 --max-retries 2
+    python3 run_experiments.py --config failed_experiments.yaml   # relaunch failures
 """
 
 __authors__ = 'Guillermo GP-Lenza'
@@ -45,6 +47,10 @@ from typing import Dict, List, Optional
 import yaml
 
 SCRIPT_DIR = Path(__file__).parent
+
+
+class MissionTimeoutError(Exception):
+    """Raised when a mission script exceeds the per-experiment timeout."""
 
 
 # ---------------------------------------------------------------------------
@@ -96,11 +102,17 @@ def _expand_entry(entry: dict) -> List[SimConfig]:
         mission_files = [Path(entry['mission_file'])]
         multi_files = False
 
+    # world_dir mirrors mission_dir's filenames 1:1 (same slug, parallel directory) so
+    # each variant gets its own world config. Falls back to a single world_file shared
+    # across all mission files for older/hand-written entries.
+    world_dir = entry.get('world_dir')
+
     modes = entry.get('modes') or [entry.get('mode', 'centralized')]
     multi_modes = len(modes) > 1
 
     configs = []
     for mf in mission_files:
+        world_file = Path(world_dir) / mf.name if world_dir else Path(entry['world_file'])
         for mode in modes:
             if multi_files and multi_modes:
                 name = f'{base_name}_{mf.stem}_{mode}'
@@ -113,7 +125,7 @@ def _expand_entry(entry: dict) -> List[SimConfig]:
 
             configs.append(SimConfig(
                 name=name,
-                world_file=Path(entry['world_file']),
+                world_file=world_file,
                 mission_file=mf,
                 mode=mode,
                 params=entry.get('params') or {},
@@ -281,7 +293,8 @@ def stop_bag(proc: subprocess.Popen) -> None:
 # Assume-running helpers (no stack lifecycle, no bag)
 # ---------------------------------------------------------------------------
 
-def run_mission_only(config: SimConfig, results_root: Path) -> int:
+def run_mission_only(config: SimConfig, results_root: Path,
+                     timeout: Optional[float] = None) -> int:
     """Send one mission to an already-running stack. No bag, no metrics, no stack lifecycle."""
     run_dir = results_root / config.name
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -313,10 +326,14 @@ def run_mission_only(config: SimConfig, results_root: Path) -> int:
 
     script = 'mission_executor.py' if config.mode == 'centralized' else 'send_mission.py'
     print(f'  [{config.mode}] {config.mission_file.name} via {script} ...', flush=True)
-    return subprocess.run(
-        ['python3', str(SCRIPT_DIR / script), tmp_path, '--use-sim-time'],
-        cwd=SCRIPT_DIR,
-    ).returncode
+    try:
+        return subprocess.run(
+            ['python3', str(SCRIPT_DIR / script), tmp_path, '--use-sim-time'],
+            cwd=SCRIPT_DIR, timeout=timeout,
+        ).returncode
+    except subprocess.TimeoutExpired:
+        print(f'  [!] mission timed out after {timeout:.0f}s', flush=True)
+        raise MissionTimeoutError(config.name)
 
 
 def reset_simulation(config: SimConfig, stack_wait: float) -> bool:
@@ -333,7 +350,8 @@ def reset_simulation(config: SimConfig, stack_wait: float) -> bool:
 # Single run (full lifecycle: launch → bag → mission → stop → metrics)
 # ---------------------------------------------------------------------------
 
-def run_one(config: SimConfig, results_root: Path, stack_wait: float) -> Optional[dict]:
+def run_one(config: SimConfig, results_root: Path, stack_wait: float,
+           timeout: Optional[float] = None) -> Optional[dict]:
     import re
     safe_name = re.sub(r'[^\w\-.]', '_', config.name)
     run_dir = results_root / safe_name
@@ -398,18 +416,27 @@ def run_one(config: SimConfig, results_root: Path, stack_wait: float) -> Optiona
 
     script = 'mission_executor.py' if config.mode == 'centralized' else 'send_mission.py'
     print(f'  running mission: {config.mission_file.name} via {script} ...', flush=True)
-    mission_result = subprocess.run(
-        ['python3', str(SCRIPT_DIR / script), tmp_mission_path, '--use-sim-time'],
-        cwd=SCRIPT_DIR,
-    )
-    if mission_result.returncode != 0:
-        print('  [!] mission script exited with error', flush=True)
+    timed_out = False
+    try:
+        mission_result = subprocess.run(
+            ['python3', str(SCRIPT_DIR / script), tmp_mission_path, '--use-sim-time'],
+            cwd=SCRIPT_DIR, timeout=timeout,
+        )
+        if mission_result.returncode != 0:
+            print('  [!] mission script exited with error', flush=True)
+    except subprocess.TimeoutExpired:
+        timed_out = True
+        print(f'  [!] mission timed out after {timeout:.0f}s', flush=True)
 
     time.sleep(3)  # capture landing in the bag
     stop_bag(bag_proc)
     print('  stopping stack ...', flush=True)
     stop_stack()
     time.sleep(5)  # let rosbag2 flush and close the sqlite file
+
+    if timed_out:
+        # bag/stack are already cleaned up above; the caller decides whether to retry
+        raise MissionTimeoutError(config.name)
 
     # -- metrics ---------------------------------------------------------------
     print('  computing metrics ...', flush=True)
@@ -420,6 +447,81 @@ def run_one(config: SimConfig, results_root: Path, stack_wait: float) -> Optiona
     _generate_plot(bag_dir, drones, run_dir / 'trajectory.png')
 
     return metrics
+
+
+# ---------------------------------------------------------------------------
+# Timeout + retry wrapping / failed-experiments file
+# ---------------------------------------------------------------------------
+
+def _config_to_entry(config: SimConfig) -> dict:
+    """Serialize a SimConfig back into an experiments.yaml-style run entry."""
+    entry = {
+        'name': config.name,
+        'world_file': str(config.world_file),
+        'mission_file': str(config.mission_file),
+        'mode': config.mode,
+        'times': config.times,
+    }
+    if config.params:
+        entry['params'] = config.params
+    if config.layer_params:
+        entry['layer_params'] = config.layer_params
+    if config.failure:
+        entry['failure'] = config.failure
+    if config.reinspect:
+        entry['reinspect'] = config.reinspect
+    return entry
+
+
+def _record_failed_experiment(path: Path, config: SimConfig) -> None:
+    """Append config to a failed-experiments YAML file (same `runs:` schema as experiments.yaml)."""
+    data = {'runs': []}
+    if path.exists():
+        loaded = yaml.safe_load(path.read_text())
+        if loaded and loaded.get('runs'):
+            data = loaded
+    data['runs'].append(_config_to_entry(config))
+    path.write_text(yaml.dump(data, default_flow_style=False, sort_keys=False, allow_unicode=True))
+    print(f'  [!] recorded failed experiment "{config.name}" to {path}', flush=True)
+
+
+def run_one_with_retries(config: SimConfig, results_root: Path, stack_wait: float,
+                         timeout: Optional[float], max_retries: int,
+                         failed_path: Path) -> Optional[dict]:
+    """run_one, retrying up to max_retries times on a mission timeout before giving up."""
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return run_one(config, results_root, stack_wait, timeout=timeout)
+        except MissionTimeoutError:
+            if attempt > max_retries:
+                print(f'  [!] giving up on "{config.name}" after {attempt} attempt(s)', flush=True)
+                _record_failed_experiment(failed_path, config)
+                return None
+            print(f'  [!] retrying "{config.name}" ({attempt}/{max_retries}) ...', flush=True)
+
+
+def run_mission_only_with_retries(config: SimConfig, results_root: Path, stack_wait: float,
+                                  timeout: Optional[float], max_retries: int,
+                                  failed_path: Path) -> Optional[int]:
+    """run_mission_only, retrying (with a simulation reset) up to max_retries times on timeout."""
+    attempt = 0
+    while True:
+        attempt += 1
+        try:
+            return run_mission_only(config, results_root, timeout=timeout)
+        except MissionTimeoutError:
+            if attempt > max_retries:
+                print(f'  [!] giving up on "{config.name}" after {attempt} attempt(s)', flush=True)
+                _record_failed_experiment(failed_path, config)
+                return None
+            print(f'  [!] retrying "{config.name}" ({attempt}/{max_retries}) — resetting simulation ...',
+                  flush=True)
+            if not reset_simulation(config, stack_wait):
+                print('  [!] stack did not come back after reset — recording as failed', flush=True)
+                _record_failed_experiment(failed_path, config)
+                return None
 
 
 # ---------------------------------------------------------------------------
@@ -599,7 +701,9 @@ def print_comparison(results: Dict[str, Optional[dict]]) -> None:
 # ---------------------------------------------------------------------------
 
 def _run_assume_running(configs: List[SimConfig], total_runs: int,
-                        results_root: Path, stack_wait: float) -> None:
+                        results_root: Path, stack_wait: float,
+                        timeout: Optional[float] = None, max_retries: int = 0,
+                        failed_path: Optional[Path] = None) -> None:
     """Batch loop for an already-running stack: send missions, reset between runs."""
     print('[run_experiments] assume-running mode: simulation must already be up', flush=True)
     run_idx   = 0
@@ -623,8 +727,10 @@ def _run_assume_running(configs: List[SimConfig], total_runs: int,
             print('  [!] stack not ready — skipping this run', flush=True)
             continue
 
-        rc = run_mission_only(config, results_root)
-        if rc != 0:
+        rc = run_mission_only_with_retries(
+            config, results_root, stack_wait, timeout, max_retries, failed_path
+        )
+        if rc is not None and rc != 0:
             print(f'  [!] mission exited with code {rc}', flush=True)
 
         is_last = (i == len(flat_runs) - 1)
@@ -652,6 +758,16 @@ def main() -> None:
     parser.add_argument('--assume-running', action='store_true',
                         help='Skip initial stack launch; send missions to the already-running '
                              'stack and reset (stop+relaunch) between runs')
+    parser.add_argument('--timeout', type=float, default=None,
+                        help='Per-experiment mission timeout in seconds (default: no timeout)')
+    parser.add_argument('--max-retries', type=int, default=0,
+                        help='Retries per experiment after a timeout before giving up and moving '
+                             'on to the next experiment (default: 0)')
+    parser.add_argument('--failed-experiments-file', type=Path,
+                        default=SCRIPT_DIR / 'failed_experiments.yaml',
+                        help='Where to append experiments that exhausted retries, in the same '
+                             '`runs:` schema as experiments.yaml so it can be passed back via '
+                             '--config to relaunch them (default: failed_experiments.yaml)')
     args = parser.parse_args()
 
     if not args.config.exists():
@@ -668,7 +784,8 @@ def main() -> None:
     print(f'[run_experiments] loaded {len(configs)} experiment(s), {total_runs} total run(s) from {args.config.name}')
 
     if args.assume_running:
-        _run_assume_running(configs, total_runs, args.results_dir, args.stack_wait)
+        _run_assume_running(configs, total_runs, args.results_dir, args.stack_wait,
+                           args.timeout, args.max_retries, args.failed_experiments_file)
         return
 
     results = {}
@@ -678,7 +795,10 @@ def main() -> None:
             run_idx += 1
             print(f'\n[{run_idx}/{total_runs}] experiment: {config.name}')
             stop_stack()
-            results[config.name] = run_one(config, args.results_dir, args.stack_wait)
+            results[config.name] = run_one_with_retries(
+                config, args.results_dir, args.stack_wait,
+                args.timeout, args.max_retries, args.failed_experiments_file
+            )
         else:
             rep_metrics = []
             for r in range(config.times):
@@ -686,8 +806,11 @@ def main() -> None:
                 rep_name = f'{config.name}_r{r + 1}'
                 print(f'\n[{run_idx}/{total_runs}] experiment: {config.name}  (rep {r + 1}/{config.times} → {rep_name})')
                 stop_stack()
-                rep_config = replace(config, name=rep_name)
-                rep_metrics.append(run_one(rep_config, args.results_dir, args.stack_wait))
+                rep_config = replace(config, name=rep_name, times=1)
+                rep_metrics.append(run_one_with_retries(
+                    rep_config, args.results_dir, args.stack_wait,
+                    args.timeout, args.max_retries, args.failed_experiments_file
+                ))
             results[config.name] = _aggregate_metrics(rep_metrics)
 
     print_comparison(results)

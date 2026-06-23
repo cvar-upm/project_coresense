@@ -139,6 +139,14 @@ def on_drone_failure(bindings: list, ctx: KBHandlerContext) -> None:
         for r in assigned
     ]
 
+    # Clear the failed drone's own stale assignment facts for these points so
+    # its on_auction_completed handler doesn't later re-pick them up and send
+    # itself a duplicate mission for points that are being redistributed here
+    for r in assigned:
+        ctx.remove_fact(f"{r['point']} assignedTo ?d")
+        ctx.remove_fact(f"{r['point']} xCoord ?x")
+        ctx.remove_fact(f"{r['point']} yCoord ?y")
+
     # Send a new EXECUTE mission that runs an auction to redistribute the points
     mission = {
         'target': ctx.drone_namespace,
@@ -150,6 +158,7 @@ def on_drone_failure(bindings: list, ctx: KBHandlerContext) -> None:
                     'elements': elements,
                     'auction_type': 'coordinate_item',
                     'bidders': bidders,
+                    'wait': False,
                 },
             },
             {'behavior': 'land', 'args': {}},

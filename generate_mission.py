@@ -423,7 +423,7 @@ def _build_run_entry(meta: dict, exp_cfg: dict, name_override: Optional[str] = N
     """Build one experiments.yaml run entry from generation metadata + experiment config."""
     entry = {
         'name':        name_override or meta['name'],
-        'world_file':  str(Path(meta['world_path']).relative_to(SCRIPT_DIR)),
+        'world_dir':   str(Path(meta['world_path']).parent.relative_to(SCRIPT_DIR)),
         'mission_dir': str(Path(meta['mission_subdir']).relative_to(SCRIPT_DIR)),
     }
     modes = exp_cfg.get('modes') or ([exp_cfg['mode']] if exp_cfg.get('mode') else [])
@@ -451,7 +451,9 @@ def generate(spec_path: Path, dry_run: bool = False) -> Optional[Path]:
         return None
 
     exp_cfg  = spec.get('experiment', {})
-    exp_path = SCRIPT_DIR / f'{_slug(spec["name"])}_experiments.yaml'
+    exp_dir  = SCRIPT_DIR / 'experiments'
+    exp_dir.mkdir(exist_ok=True)
+    exp_path = exp_dir / f'{_slug(spec["name"])}_experiments.yaml'
     entry    = _build_run_entry(meta, exp_cfg)
     exp_path.write_text(yaml.dump({'runs': [entry]}, default_flow_style=False, sort_keys=False))
     print(f'[gen] wrote experiments -> {exp_path}')
@@ -485,10 +487,12 @@ def generate_sweep(spec_path: Path, dry_run: bool = False) -> Optional[Path]:
     if dry_run or not generated:
         return None
 
-    # One consolidated run entry pointing at the shared mission directory.
-    # world_file is taken from the first variant (limitation: varies if sweep
-    # includes drones.count or other world-affecting parameters).
-    exp_path = SCRIPT_DIR / f'{_slug(base_name)}_sweep_experiments.yaml'
+    # One consolidated run entry pointing at the shared mission/world directories.
+    # run_experiments.py matches each mission file to its world file by basename,
+    # so per-variant world configs (e.g. differing drones.count) resolve correctly.
+    exp_dir  = SCRIPT_DIR / 'experiments'
+    exp_dir.mkdir(exist_ok=True)
+    exp_path = exp_dir / f'{_slug(base_name)}_sweep_experiments.yaml'
     entry    = _build_run_entry(generated[0], exp_cfg, name_override=base_name)
     exp_path.write_text(yaml.dump({'runs': [entry]}, default_flow_style=False, sort_keys=False))
     print(f'[gen] wrote sweep experiments ({len(generated)} variants in {entry["mission_dir"]}) -> {exp_path}')

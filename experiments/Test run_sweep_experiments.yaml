@@ -1,9 +1,0 @@
-runs:
-- name: Test run_count3
-  world_file: config/exp_config/Test run/Test run_count3.yaml
-  mission_file: missions/Test run_count3.yaml
-  times: 2
-- name: Test run_count4
-  world_file: config/exp_config/Test run/Test run_count4.yaml
-  mission_file: missions/Test run_count4.yaml
-  times: 2

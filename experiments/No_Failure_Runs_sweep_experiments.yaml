@@ -1,8 +1,0 @@
-runs:
-- name: No_Failure_Runs
-  world_file: config/exp_config/No_Failure_Runs/No_Failure_Runs_count2.yaml
-  mission_dir: missions_no_failure_runs/No_Failure_Runs
-  modes:
-  - centralized
-  - decentralized
-  times: 5
